@@ -23,7 +23,9 @@ simulate_founder_genome <- function(genome_table,
                                     final_Ne,
                                     historical_Ne,
                                     historical_Ne_time,
-                                    split) {
+                                    split,
+                                    parallel = FALSE,
+                                    n_cores = NULL) {
 
   if (!is.null(seg_sites_per_bp)) {
     seg_sites <- genome_table$length /1e6 * seg_sites_per_bp
@@ -36,19 +38,40 @@ simulate_founder_genome <- function(genome_table,
   pop_chr <- vector(mode = "list",
                     length = n_chr)
 
+  if (parallel) {
+    pop_chr <- parallel::mcmapply(
+      function(bp, gen_length, seg_sites) {
+        AlphaSimR::runMacs2(bp = bp,
+                            genLen = gen_length,
+                            nInd = n_ind,
+                            nChr = 1,
+                            segSites = seg_sites,
+                            Ne = final_Ne,
+                            histNe = historical_Ne,
+                            histGen = historical_Ne_time,
+                            split = split)
+      },
+      bp = genome_table$length,
+      gen_length = genome_table$genetic_length / 100,
+      seg_sites = seg_sites,
+      mc.cores = n_cores)
+  } else {
+    for (chr_ix in 1:n_chr) {
+
+      pop_chr[[chr_ix]] <-
+        AlphaSimR::runMacs2(bp = genome_table$length[chr_ix],
+                            genLen = genome_table$genetic_length[chr_ix] / 100,
+                            nInd = n_ind,
+                            nChr = 1,
+                            segSites = seg_sites[chr_ix],
+                            Ne = final_Ne,
+                            histNe = historical_Ne,
+                            histGen = historical_Ne_time,
+                            split = split)
+    }
+  }
+
   for (chr_ix in 1:n_chr) {
-
-    pop_chr[[chr_ix]] <-
-      AlphaSimR::runMacs2(bp = genome_table$length[chr_ix],
-                          genLen = genome_table$genetic_length[chr_ix] / 100,
-                          nInd = n_ind,
-                          nChr = 1,
-                          segSites = seg_sites[chr_ix],
-                          Ne = final_Ne,
-                          histNe = historical_Ne,
-                          histGen = historical_Ne_time,
-                          split = split)
-
     ## Fix names
     sim_map <- pop_chr[[chr_ix]]@genMap
     old_names <- names(sim_map[[1]])

@@ -11,7 +11,9 @@ simulate_founder_genome(
   final_Ne,
   historical_Ne,
   historical_Ne_time,
-  split
+  split,
+  parallel = FALSE,
+  n_cores = NULL
 )
 }
 \arguments{
